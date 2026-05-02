@@ -254,27 +254,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className="relative cursor-pointer group">
-            <div className="relative w-24 h-24">
-              <div className="absolute inset-0 bg-gradient-to-b from-yellow-200 to-yellow-400 rounded-full animate-bounce shadow-lg shadow-yellow-400/30"></div>
-              <div className="absolute top-4 left-4 w-16 h-16 bg-yellow-300 rounded-full">
-                <div className="absolute top-2 left-2 w-4 h-4 bg-white rounded-full animate-pulse"></div>
-                <div className="absolute top-2 right-2 w-4 h-4 bg-white rounded-full animate-pulse"></div>
-                <div className="absolute top-6 left-6 w-4 h-3 bg-yellow-600 rounded-full"></div>
-                <div className="absolute -top-2 -left-2 w-6 h-6 bg-yellow-300 rounded-full opacity-60"></div>
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-300 rounded-full opacity-60"></div>
-                <div className="absolute top-0 left-3 w-3 h-3 bg-yellow-200 rounded-full animate-ping"></div>
-                <div className="absolute top-0 right-3 w-3 h-3 bg-yellow-200 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
-              </div>
-              <div className="absolute bottom-3 left-3 w-10 h-3 bg-yellow-500 rounded-full opacity-80"></div>
-            </div>
-            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800/80 text-cyan-300 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              汪汪！帮你分段
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );
