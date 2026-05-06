@@ -1,240 +1,222 @@
-'use client';
+import { useState, useCallback } from 'react';
 
-import { useState } from 'react';
-
-interface ModeConfig {
-  min: number;
-  max: number;
+interface SegmentResult {
+  text: string;
+  charCount: number;
 }
 
-const modes: Record<string, ModeConfig> = {
-  '30-50': { min: 30, max: 50 },
-  '40-55': { min: 40, max: 55 },
-  '70-90': { min: 70, max: 90 },
-  '130-150': { min: 130, max: 150 },
-};
+const SEGMENT_MODES = [
+  { label: '30-50字', min: 30, max: 50 },
+  { label: '40-60字', min: 40, max: 60 },
+  { label: '70-90字', min: 70, max: 90 },
+  { label: '130-150字', min: 130, max: 150 },
+];
 
-function countChineseAndNumbers(text: string): number {
-  const matches = text.match(/[\u4e00-\u9fa50-9]/g);
-  return matches ? matches.length : 0;
-}
-
-function splitIntoSentences(text: string): string[] {
-  const sentenceEndings = /([。！？；])/g;
-  const parts = text.split(sentenceEndings);
-  const sentences: string[] = [];
-
-  for (let i = 0; i < parts.length; i += 2) {
-    if (parts[i]) {
-      const sentence = parts[i] + (parts[i + 1] || '');
-      sentences.push(sentence);
+function countChineseChars(text: string): number {
+  let count = 0;
+  for (let i = 0; i < text.length; i++) {
+    const charCode = text.charCodeAt(i);
+    if ((charCode >= 0x4E00 && charCode <= 0x9FFF) || 
+        (charCode >= 0x0030 && charCode <= 0x0039)) {
+      count++;
     }
   }
-
-  return sentences;
+  return count;
 }
 
-function splitText(text: string, currentMode: string): string[] {
-  const { min, max } = modes[currentMode];
-  const segments: string[] = [];
+function segmentText(text: string, minLen: number, maxLen: number): SegmentResult[] {
+  const results: SegmentResult[] = [];
+  const punctuation = /[。！？；，、]/g;
+  let start = 0;
   
-  const cleanText = text.replace(/\s+/g, '').replace(/【|】/g, '');
+  text = text.trim();
   
-  let position = 0;
-  const length = cleanText.length;
-  
-  while (position < length) {
-    let segment = '';
-    let charCount = 0;
-    
-    for (let i = position; i < length; i++) {
-      const char = cleanText[i];
-      const isChineseOrNumber = /[\u4e00-\u9fa50-9]/.test(char);
-      
-      if (isChineseOrNumber) {
-        if (charCount >= max) {
-          break;
-        }
-        charCount++;
+  while (start < text.length) {
+    let end = start + maxLen;
+    if (end >= text.length) {
+      const lastPart = text.substring(start).trim();
+      if (lastPart) {
+        results.push({ text: lastPart, charCount: countChineseChars(lastPart) });
       }
-      
-      segment += char;
-      
-      if (isChineseOrNumber && charCount >= min && charCount >= max) {
+      break;
+    }
+    
+    let foundPunctuation = false;
+    let bestSplit = end;
+    
+    for (let i = end; i >= start + minLen; i--) {
+      if (punctuation.test(text[i])) {
+        bestSplit = i + 1;
+        foundPunctuation = true;
         break;
       }
     }
     
-    if (segment.length > 0) {
-      segments.push(segment);
-      position += segment.length;
-    } else {
-      break;
+    if (!foundPunctuation) {
+      bestSplit = end;
     }
+    
+    const segment = text.substring(start, bestSplit).trim();
+    if (segment) {
+      results.push({ text: segment, charCount: countChineseChars(segment) });
+    }
+    start = bestSplit;
   }
   
-  return segments.map(s => s.trim());
+  return results;
 }
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
-  const [currentMode, setCurrentMode] = useState('40-55');
-  const [segments, setSegments] = useState<string[]>([]);
-  const [copied, setCopied] = useState(false);
+  const [selectedMode, setSelectedMode] = useState(SEGMENT_MODES[1]);
+  const [results, setResults] = useState<SegmentResult[]>([]);
+  const [showComplete, setShowComplete] = useState(false);
 
-  const inputCount = countChineseAndNumbers(inputText);
-  const resultCount = segments.reduce((acc, seg) => acc + countChineseAndNumbers(seg), 0);
+  const handleSegment = useCallback(() => {
+    if (!inputText.trim()) return;
+    
+    const result = segmentText(inputText, selectedMode.min, selectedMode.max);
+    setResults(result);
+    setShowComplete(true);
+    
+    setTimeout(() => setShowComplete(false), 3000);
+  }, [inputText, selectedMode]);
 
-  const handleSplit = () => {
-    if (!inputText.trim()) {
-      alert('请输入需要分段的文本');
-      return;
-    }
-    const result = splitText(inputText, currentMode);
-    setSegments(result);
-  };
+  const handleCopy = useCallback(async () => {
+    const text = results.map(r => `【${r.text}】`).join('\n');
+    await navigator.clipboard.writeText(text);
+    alert('复制成功！');
+  }, [results]);
 
-  const handleCopy = async () => {
-    if (segments.length === 0) {
-      alert('没有可复制的内容');
-      return;
-    }
-
-    const resultText = segments.map((seg, i) => `【${i + 1}】${seg}`).join('\n\n');
-
-    try {
-      await navigator.clipboard.writeText(resultText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('复制失败:', err);
-      alert('复制失败，请手动复制');
-    }
-  };
-
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setInputText('');
-    setSegments([]);
-  };
+    setResults([]);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center text-cyan-400 mb-2 text-shadow-lg shadow-cyan-400/50">
-          ✦ 明亮分段工具 ✦
-        </h1>
-        <p className="text-center text-cyan-200/80 mb-2">智能识别标点，保持语义完整</p>
-        <p className="text-center text-cyan-300/70 text-sm mb-4">微信：zhengnianxin123</p>
-        {segments.length > 0 && (
-          <div className="bg-green-500/20 border border-green-500/40 rounded-full px-6 py-2 mb-4 text-center">
-            <span className="text-green-400 font-medium">✓ 分段完成，共生成 {segments.length} 段</span>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-cyan-400 mb-2 flex items-center justify-center gap-3">
+            <span className="text-2xl">✦</span>
+            明亮分段工具
+            <span className="text-2xl">✦</span>
+          </h1>
+          <p className="text-gray-400">智能识别标点，保持语义完整</p>
+          <p className="text-cyan-300 mt-2">微信：zhengnianxin123</p>
+        </div>
+
+        {showComplete && (
+          <div className="bg-green-500/20 border border-green-500/50 text-green-400 px-6 py-3 rounded-lg text-center mb-6 flex items-center justify-center gap-2">
+            <span>✓</span>
+            <span>分段完成，共生成 {results.length} 段</span>
           </div>
         )}
 
-        <div className="bg-slate-800/60 backdrop-blur border border-cyan-500/30 rounded-xl p-5 mb-5">
+        <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-cyan-500/20">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-cyan-400 text-xl">☰</span>
-            <span className="text-cyan-200">选择分段模式</span>
+            <div className="w-6 h-6 rounded bg-cyan-500/30 flex items-center justify-center">
+              <span className="text-cyan-400 text-sm">☰</span>
+            </div>
+            <h2 className="text-cyan-400 font-semibold">选择分段模式</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {Object.keys(modes).map((mode) => (
+          <div className="grid grid-cols-4 gap-3">
+            {SEGMENT_MODES.map((mode) => (
               <button
-                key={mode}
-                onClick={() => setCurrentMode(mode)}
+                key={mode.label}
+                onClick={() => setSelectedMode(mode)}
                 className={`py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-                  currentMode === mode
-                    ? 'bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-400/30'
-                    : 'bg-slate-700/60 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-400/20'
+                  selectedMode.label === mode.label
+                    ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
+                    : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
-                {mode}字
+                {mode.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="bg-slate-800/60 backdrop-blur border border-cyan-500/30 rounded-xl p-5 mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-cyan-400 text-xl">☐</span>
-            <span className="text-cyan-200">输入文本</span>
-            <span className="ml-auto text-cyan-300/70 text-sm">
-              {inputCount} 字 (仅统计汉字和数字)
-            </span>
+        <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-cyan-500/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-cyan-500/30 flex items-center justify-center">
+                <span className="text-cyan-400 text-sm">□</span>
+              </div>
+              <h2 className="text-cyan-400 font-semibold">输入文本</h2>
+            </div>
+            <span className="text-gray-400 text-sm">{countChineseChars(inputText)} 字 (仅统计汉字和数字)</span>
           </div>
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="请输入需要分段的文本..."
-            className="w-full h-44 p-4 bg-slate-700/50 border border-cyan-500/20 rounded-lg text-cyan-50 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 resize-y"
+            placeholder="请输入需要分段的文案..."
+            className="w-full h-48 bg-slate-900/50 border border-slate-700 rounded-lg p-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 resize-none"
           />
         </div>
 
-        <div className="flex flex-wrap justify-center gap-4 mb-6">
+        <div className="flex justify-center gap-4 mb-6">
           <button
-            onClick={handleSplit}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-900 font-bold rounded-lg hover:from-cyan-400 hover:to-cyan-500 transition-all duration-300 shadow-lg shadow-cyan-500/30 hover:-translate-y-0.5"
+            onClick={handleSegment}
+            className="bg-cyan-500 hover:bg-cyan-400 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/30 flex items-center gap-2"
           >
             <span>✕</span>
             开始分段
           </button>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 px-6 py-3 bg-slate-700/60 text-cyan-200 rounded-lg border border-cyan-500/30 hover:bg-cyan-500/20 transition-all duration-300"
+            disabled={results.length === 0}
+            className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-gray-500 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-300 flex items-center gap-2"
           >
             <span>📋</span>
-            {copied ? '已复制!' : '复制结果'}
+            复制结果
           </button>
           <button
             onClick={handleClear}
-            className="flex items-center gap-2 px-6 py-3 bg-slate-700/60 text-cyan-200 rounded-lg border border-cyan-500/30 hover:bg-red-500/20 hover:border-red-500/50 transition-all duration-300"
+            className="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-300 flex items-center gap-2"
           >
             <span>🗑️</span>
             清空内容
           </button>
         </div>
 
-        <div className="bg-slate-800/60 backdrop-blur border border-cyan-500/30 rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className="text-cyan-400 text-xl">T</span>
-            <span className="text-cyan-200">分段结果</span>
-            <span className="ml-2 text-cyan-300/70 text-sm">
-              (当前模式: {currentMode}字)
-            </span>
-            <span className="ml-auto text-cyan-300/70 text-sm">
-              {resultCount} 字 (仅统计汉字和数字)
-            </span>
-          </div>
-          <div className="max-h-96 overflow-y-auto space-y-4 pr-2">
-            {segments.length === 0 ? (
-              <div className="text-slate-500 text-center py-12">分段结果将显示在这里...</div>
-            ) : (
-              segments.map((segment, index) => {
-                const count = countChineseAndNumbers(segment);
+        {results.length > 0 && (
+          <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-cyan-500/20">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-cyan-500/30 flex items-center justify-center">
+                  <span className="text-cyan-400 text-sm">T</span>
+                </div>
+                <h2 className="text-cyan-400 font-semibold">分段结果 (当前模式: {selectedMode.label})</h2>
+              </div>
+              <span className="text-gray-400 text-sm">{countChineseChars(inputText)} 字 (仅统计汉字和数字)</span>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+              {results.map((result, index) => {
+                const isInRange = result.charCount >= selectedMode.min && result.charCount <= selectedMode.max;
                 return (
-                  <div
-                    key={index}
-                    className="bg-cyan-400/5 border-l-4 border-cyan-400 rounded-r-lg p-4"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="w-7 h-7 bg-cyan-400 text-slate-900 rounded-full flex items-center justify-center text-sm font-bold">
+                  <div key={index} className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white font-bold flex-shrink-0">
                         {index + 1}
-                      </span>
-                    </div>
-                    <div className="text-cyan-50 pl-10 leading-relaxed">
-                      【{segment}】
-                    </div>
-                    <div className="flex justify-end mt-2">
-                      <span className="text-green-400 text-xs bg-green-400/10 border border-green-400/30 rounded-full px-3 py-1">
-                        ✓ {count}字 符合要求
-                      </span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white mb-2">【{result.text}】</p>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                          isInRange ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          <span>◎</span>
+                          <span>{result.charCount}字</span>
+                          <span>{isInRange ? '✓ 符合要求' : '超出范围'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
-        </div>
-
+        )}
       </div>
     </div>
   );
