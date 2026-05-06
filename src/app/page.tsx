@@ -85,7 +85,7 @@ export default function Home() {
   }, [inputText, selectedMode]);
 
   const handleCopy = useCallback(async () => {
-    const text = results.map(r => `【${r.text}】`).join('\n');
+    const text = results.map((r, i) => `【${i + 1}】${r.text}`).join('\n');
     await navigator.clipboard.writeText(text);
     alert('复制成功！');
   }, [results]);
