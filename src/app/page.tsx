@@ -9,7 +9,7 @@ interface ModeConfig {
 
 const modes: Record<string, ModeConfig> = {
   '30-50': { min: 30, max: 50 },
-  '40-60': { min: 40, max: 60 },
+  '40-55': { min: 40, max: 55 },
   '70-90': { min: 70, max: 90 },
   '130-150': { min: 130, max: 150 },
 };
