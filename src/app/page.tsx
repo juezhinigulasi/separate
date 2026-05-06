@@ -75,21 +75,36 @@ function splitText(text: string, currentMode: string): string[] {
       currentSegment = temp;
     } else {
       if (currentSegment) {
-        segments.push(currentSegment.trim());
-      }
-
-      if (countChineseAndNumbers(sentence) > max) {
-        const subSegments = splitLongSentence(sentence, max, min);
-        segments.push(...subSegments);
-        currentSegment = '';
+        const currentCount = countChineseAndNumbers(currentSegment);
+        if (currentCount >= min) {
+          segments.push(currentSegment.trim());
+          currentSegment = sentence;
+        } else {
+          const subSegments = splitLongSentence(currentSegment + sentence, max, min);
+          segments.push(...subSegments);
+          currentSegment = '';
+        }
       } else {
-        currentSegment = sentence;
+        if (countChineseAndNumbers(sentence) > max) {
+          const subSegments = splitLongSentence(sentence, max, min);
+          segments.push(...subSegments);
+          currentSegment = '';
+        } else {
+          currentSegment = sentence;
+        }
       }
     }
   }
 
   if (currentSegment) {
-    segments.push(currentSegment.trim());
+    const currentCount = countChineseAndNumbers(currentSegment);
+    if (currentCount >= min) {
+      segments.push(currentSegment.trim());
+    } else if (segments.length > 0) {
+      segments[segments.length - 1] += currentSegment;
+    } else {
+      segments.push(currentSegment.trim());
+    }
   }
 
   return segments;
