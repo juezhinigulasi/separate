@@ -34,80 +34,54 @@ function splitIntoSentences(text: string): string[] {
   return sentences;
 }
 
-function splitLongSentence(sentence: string, maxLength: number, minLength: number): string[] {
+function splitText(text: string, currentMode: string): string[] {
+  const { min, max } = modes[currentMode];
   const segments: string[] = [];
+  
+  const cleanText = text.replace(/\s+/g, '').replace(/【|】/g, '');
+  const chars = cleanText.split('');
+  
   let current = '';
-  const chars = sentence.split('');
-
+  let currentCount = 0;
+  
   for (let i = 0; i < chars.length; i++) {
-    current += chars[i];
-    const count = countChineseAndNumbers(current);
-
-    if (count >= minLength && (count >= maxLength || i === chars.length - 1)) {
-      segments.push(current);
-      current = '';
+    const char = chars[i];
+    const charCount = /[\u4e00-\u9fa50-9]/.test(char) ? 1 : 0;
+    
+    if (currentCount + charCount <= max) {
+      current += char;
+      currentCount += charCount;
+    } else {
+      if (currentCount >= min) {
+        segments.push(current);
+        current = char;
+        currentCount = charCount;
+      } else {
+        for (let j = min - currentCount; j > 0 && i < chars.length; j--) {
+          current += chars[i];
+          if (/[\u4e00-\u9fa50-9]/.test(chars[i])) {
+            currentCount++;
+          }
+          i++;
+        }
+        i--;
+        segments.push(current);
+        current = '';
+        currentCount = 0;
+      }
     }
   }
-
+  
   if (current) {
-    if (segments.length > 0) {
+    const finalCount = countChineseAndNumbers(current);
+    if (segments.length > 0 && finalCount < min) {
       segments[segments.length - 1] += current;
     } else {
       segments.push(current);
     }
   }
-
-  return segments;
-}
-
-function splitText(text: string, currentMode: string): string[] {
-  const { min, max } = modes[currentMode];
-  const segments: string[] = [];
-  let currentSegment = '';
-
-  const sentences = splitIntoSentences(text);
-
-  for (const sentence of sentences) {
-    const temp = currentSegment + (currentSegment ? '' : '') + sentence;
-    const tempCount = countChineseAndNumbers(temp);
-
-    if (tempCount <= max) {
-      currentSegment = temp;
-    } else {
-      if (currentSegment) {
-        const currentCount = countChineseAndNumbers(currentSegment);
-        if (currentCount >= min) {
-          segments.push(currentSegment.trim());
-          currentSegment = sentence;
-        } else {
-          const subSegments = splitLongSentence(currentSegment + sentence, max, min);
-          segments.push(...subSegments);
-          currentSegment = '';
-        }
-      } else {
-        if (countChineseAndNumbers(sentence) > max) {
-          const subSegments = splitLongSentence(sentence, max, min);
-          segments.push(...subSegments);
-          currentSegment = '';
-        } else {
-          currentSegment = sentence;
-        }
-      }
-    }
-  }
-
-  if (currentSegment) {
-    const currentCount = countChineseAndNumbers(currentSegment);
-    if (currentCount >= min) {
-      segments.push(currentSegment.trim());
-    } else if (segments.length > 0) {
-      segments[segments.length - 1] += currentSegment;
-    } else {
-      segments.push(currentSegment.trim());
-    }
-  }
-
-  return segments;
+  
+  return segments.map(s => s.trim());
 }
 
 export default function Home() {
