@@ -40,36 +40,36 @@ function splitText(text: string, currentMode: string): string[] {
   
   const cleanText = text.replace(/\s+/g, '').replace(/【|】/g, '');
   
-  let start = 0;
-  while (start < cleanText.length) {
-    let count = 0;
-    let end = start;
+  let position = 0;
+  const length = cleanText.length;
+  
+  while (position < length) {
+    let segment = '';
+    let charCount = 0;
     
-    while (end < cleanText.length) {
-      const charCount = /[\u4e00-\u9fa50-9]/.test(cleanText[end]) ? 1 : 0;
+    for (let i = position; i < length; i++) {
+      const char = cleanText[i];
+      const isChineseOrNumber = /[\u4e00-\u9fa50-9]/.test(char);
       
-      if (count + charCount > max) {
-        break;
-      }
-      
-      count += charCount;
-      end++;
-    }
-    
-    if (count >= min) {
-      segments.push(cleanText.slice(start, end));
-      start = end;
-    } else {
-      while (end < cleanText.length) {
-        const charCount = /[\u4e00-\u9fa50-9]/.test(cleanText[end]) ? 1 : 0;
-        count += charCount;
-        end++;
-        if (count >= min) {
+      if (isChineseOrNumber) {
+        if (charCount >= max) {
           break;
         }
+        charCount++;
       }
-      segments.push(cleanText.slice(start, end));
-      start = end;
+      
+      segment += char;
+      
+      if (isChineseOrNumber && charCount >= min && charCount >= max) {
+        break;
+      }
+    }
+    
+    if (segment.length > 0) {
+      segments.push(segment);
+      position += segment.length;
+    } else {
+      break;
     }
   }
   
@@ -78,7 +78,7 @@ function splitText(text: string, currentMode: string): string[] {
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
-  const [currentMode, setCurrentMode] = useState('40-60');
+  const [currentMode, setCurrentMode] = useState('40-55');
   const [segments, setSegments] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
 
