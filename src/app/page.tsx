@@ -39,45 +39,37 @@ function splitText(text: string, currentMode: string): string[] {
   const segments: string[] = [];
   
   const cleanText = text.replace(/\s+/g, '').replace(/【|】/g, '');
-  const chars = cleanText.split('');
   
-  let current = '';
-  let currentCount = 0;
-  
-  for (let i = 0; i < chars.length; i++) {
-    const char = chars[i];
-    const charCount = /[\u4e00-\u9fa50-9]/.test(char) ? 1 : 0;
+  let start = 0;
+  while (start < cleanText.length) {
+    let count = 0;
+    let end = start;
     
-    if (currentCount + charCount <= max) {
-      current += char;
-      currentCount += charCount;
-    } else {
-      if (currentCount >= min) {
-        segments.push(current);
-        current = char;
-        currentCount = charCount;
-      } else {
-        for (let j = min - currentCount; j > 0 && i < chars.length; j--) {
-          current += chars[i];
-          if (/[\u4e00-\u9fa50-9]/.test(chars[i])) {
-            currentCount++;
-          }
-          i++;
-        }
-        i--;
-        segments.push(current);
-        current = '';
-        currentCount = 0;
+    while (end < cleanText.length) {
+      const charCount = /[\u4e00-\u9fa50-9]/.test(cleanText[end]) ? 1 : 0;
+      
+      if (count + charCount > max) {
+        break;
       }
+      
+      count += charCount;
+      end++;
     }
-  }
-  
-  if (current) {
-    const finalCount = countChineseAndNumbers(current);
-    if (segments.length > 0 && finalCount < min) {
-      segments[segments.length - 1] += current;
+    
+    if (count >= min) {
+      segments.push(cleanText.slice(start, end));
+      start = end;
     } else {
-      segments.push(current);
+      while (end < cleanText.length) {
+        const charCount = /[\u4e00-\u9fa50-9]/.test(cleanText[end]) ? 1 : 0;
+        count += charCount;
+        end++;
+        if (count >= min) {
+          break;
+        }
+      }
+      segments.push(cleanText.slice(start, end));
+      start = end;
     }
   }
   
