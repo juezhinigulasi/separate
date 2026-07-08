@@ -10,11 +10,11 @@ interface Mode {
 }
 
 const MODES: Mode[] = [
-  { sec: 8, min: 38, max: 48, label: '分段8段' },
-  { sec: 10, min: 48, max: 60, label: '分段10段' },
-  { sec: 12, min: 58, max: 72, label: '分段12段' },
-  { sec: 15, min: 72, max: 90, label: '分段15段' },
-  { sec: 25, min: 120, max: 150, label: '分段25段' },
+  { sec: 8, min: 38, max: 48, label: '分段8秒' },
+  { sec: 10, min: 48, max: 60, label: '分段10秒' },
+  { sec: 12, min: 58, max: 72, label: '分段12秒' },
+  { sec: 15, min: 72, max: 90, label: '分段15秒' },
+  { sec: 25, min: 120, max: 150, label: '分段25秒' },
 ];
 
 const W_SHORT = 3;
@@ -174,24 +174,52 @@ export default function Home() {
   }, [minChars, maxChars]);
 
   const handleMinPlus = useCallback(() => {
-    setMinChars(prev => prev + 1);
+    setMinChars(prev => {
+      const newMin = prev + 1;
+      if (inputText.trim()) {
+        const result = segment(inputText.trim(), newMin, maxChars);
+        setSegments(result);
+      }
+      return newMin;
+    });
     syncRange();
-  }, [syncRange]);
+  }, [syncRange, inputText, maxChars]);
 
   const handleMinMinus = useCallback(() => {
-    setMinChars(prev => Math.max(1, prev - 1));
+    setMinChars(prev => {
+      const newMin = Math.max(1, prev - 1);
+      if (inputText.trim()) {
+        const result = segment(inputText.trim(), newMin, maxChars);
+        setSegments(result);
+      }
+      return newMin;
+    });
     syncRange();
-  }, [syncRange]);
+  }, [syncRange, inputText, maxChars]);
 
   const handleMaxPlus = useCallback(() => {
-    setMaxChars(prev => prev + 1);
+    setMaxChars(prev => {
+      const newMax = prev + 1;
+      if (inputText.trim()) {
+        const result = segment(inputText.trim(), minChars, newMax);
+        setSegments(result);
+      }
+      return newMax;
+    });
     syncRange();
-  }, [syncRange]);
+  }, [syncRange, inputText, minChars]);
 
   const handleMaxMinus = useCallback(() => {
-    setMaxChars(prev => Math.max(1, prev - 1));
+    setMaxChars(prev => {
+      const newMax = Math.max(1, prev - 1);
+      if (inputText.trim()) {
+        const result = segment(inputText.trim(), minChars, newMax);
+        setSegments(result);
+      }
+      return newMax;
+    });
     syncRange();
-  }, [syncRange]);
+  }, [syncRange, inputText, minChars]);
 
   const handleSegment = useCallback(() => {
     const text = inputText.trim();
